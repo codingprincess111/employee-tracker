@@ -63,12 +63,6 @@ function start() {
             case "View Employees by Manager":
                 viewEmployeesByManager();
                 break;
-            case "View Employees by Department":
-                viewEmployeesByDepartment();
-                break;
-            case "Delete Departments | Roles | Employees":
-                deleteDepartmentsRolesEmployees();
-                break;
             case 'Exit':
                 connection.end();
                 console.log("bye");
@@ -100,12 +94,27 @@ function viewAllRoles() {
 // function to view all employees
 function viewAllEmployees() {
     const query = `
-    SELECT e.id, e.first_name, e.last_name, r.title, d.department_name, r.salary, CONCAT(m.first_name, ' ', m.last_name) AS manager_name
-    FROM employee e
-    LEFT JOIN roles r ON e.role_id = r.id
-    LEFT JOIN departments d ON r.department_id = d.id
-    LEFT JOIN employee m ON e.manager_id = m.id;
-    `;
+    SELECT 
+        e.id, \n        e.first_name, 
+        e.last_name, 
+        r.title, 
+        d.department_name, 
+        r.salary, 
+        CONCAT(m.first_name, ' ', m.last_name) AS manager_name
+    FROM 
+        employee e
+        LEFT JOIN roles r ON e.role_id = r.id
+        LEFT JOIN departments d ON r.department_id = d.id
+        LEFT JOIN employee m ON e.manager_id = m.id;
+`;
+
+    // const query = `
+    // SELECT e.id, e.first_name, e.last_name, r.title, d.department_name, r.salary, CONCAT(m.first_name, ' ', m.last_name) AS manager_name
+    // FROM employee e
+    // LEFT JOIN roles r ON e.role_id = r.id
+    // LEFT JOIN departments d ON r.department_id = d.id
+    // LEFT JOIN employee m ON e.manager_id = m.id;
+    // `;
     connection.query(query, (err, res) => {
         if (err) throw err;
         console.table(res);
@@ -255,9 +264,167 @@ function addEmployee() {
 }
 
 
-// function to add a manager
-// function addManager() {
-//     const qDepartments = "SELECT * FROM departmemts";
-//     const qEmployees = "SELECT * FROM employee";
+//function to add a manager
+function addManager() {
+    const qDepartments = "SELECT * FROM departmemts";
+    const qEmployees = "SELECT * FROM employee";
 
-//     connection.query(qDepartments, (err, resDepartments) => {
+    connection.query(qDepartments, (err, resDepartments) => {
+        if (err) throw err;
+        connection.query(qEmployees, (err, resEmployees) => {
+            if (err) throw err;
+            inquirer
+            .prompt([
+                {
+                    type:"list",
+                    name: "department",
+                    message: "select the department:",
+                    choices: resDepartments.map((department) => department.department_name
+                    ),
+                },
+                {
+                    type: "list",
+                    name: "employee",
+                    message: "select the employee to add a manager to:",
+                    choices: resEmployees.map((employee) => employee.first_name + " " + employee.last_name
+                    ),
+                },
+                {
+                    type: "list",
+                    name: "manager",
+                    message: "select the employee's manager",
+                    choices: resEmployees.map((employee) => employee.first_name + " " + employee.last_name
+                    ),
+                },
+            
+            ])
+            .then((answer) => {
+                const department = resDepartments.find(
+                    (department) => department.department_name === answer.department
+                );
+                const employee = resEmployees.find(
+                    (employee) => employee.first_name + " " + employee.last_name === answer.employee
+                );
+                const manager = resEmployees.find(
+                    (employee) => employee.first_name + " " + employee.last_name === answer.manager
+                );
+                const query = "UPDATE employee SET manager_id = ? AND role_id IN (select id FROM roles WHERE department_id =?)";
+                connection.query(
+                    query,
+                    [manager.id, employee.id, department.id],
+                    (err, res) => {
+                        if (err) throw err;
+                        console.log("Manager added successfully");
+                        start();
+                    }    
+                );
+            });
+        });
+    });
+}   
+
+// function to update an employee role
+
+
+function updateEmployeeRole() {
+    const qEmployees = "SELECT employee.id, employee.first_name, employee.last_name, roles.title FROM employee LEFT JOIN roles ON employee.role_id = roles.id";
+    const qRoles = "SELECT * FROM roles";
+     connection.query(qEmployees, (err, resEmployees) => {
+        if (err) throw err; 
+        connection.query(qRoles, (err, resRoles) => {
+            if (err) throw err;
+            inquirer
+                .prompt([
+                {
+                    type: "list",
+                    name: "employee",
+                    message: "select the employee to update:",
+                    choices: resEmployees.map(
+                        (employee) => `${employee.first_name} ${employee.last_name}`
+                        ),
+                },
+                {
+                    type: "list",
+                    name: "role",
+                    message: "select the employee's new role:",
+                    choices: resRoles.map((role) => role.title),
+                },
+            ])
+            .then((answer) => {
+                const employee = resEmployees.find(
+                    (employee) =>
+                        `${employee.first_name} ${employee.last_name}` ===
+                        answer.employee
+                );
+                const role = resRoles.find(
+                    (role) => role.title === answer.role
+                );
+                const query =
+                    "UPDATE employee SET role_id = ? WHERE id = ?";
+                connection.query(
+                    query,
+                    [role.id, employee.id],
+                    (err, res) => {
+                        if (err) throw err;
+                        console.log(
+                            `Updated ${employee.first_name} ${employee.last_name}'s role to ${role.title} in the database!`
+                        );
+                        // restart the application
+                        start();
+                    }
+                );
+            });
+        });
+    });
+}
+
+
+
+// function to view employee by manager
+function viewEmployeesByManager () {
+    const query = `
+    SELECT
+    e.id, \n        e.first_name, 
+    e.last_name,
+    r.title,
+    d.department_name,
+    CONCAT(m.first_name,'', m.last_name) AS manager_name
+    FROM 
+    employee e
+    INNER JOIN roles r ON e.role_id = r.id
+    INNER JOIN departments d ON r.department_id = d.id
+    LEFT JOIN employee m ON e.manager_id = m.id
+    ORDER BY
+    manager_name,
+    e.first_name,
+    e.last_name
+    `;
+    connection.query(query, (err, res) => {
+        if (err) throw err;
+
+        const employeesByManager = res.reduce((acc, cur) => {
+            const managerName = cur.manager_name;
+            if (!acc[managerName]) {
+                acc[managerName].push(cur);
+            } else {
+                acc[managerName] = [cur];
+            }
+            return acc;    
+            
+        }, {});
+
+        console.log("Employees by manager:");
+        for ( const managerName in employeesByManager) {
+            console.log(`\n${managerName}:`);
+            const employees = employeesByManager[managerName];
+            employees.forEach((employee) => {
+                console.log(`\t${employee.first_name} ${employee.last_name}`);
+            });
+        }
+        start();
+    });
+}
+
+
+
+
