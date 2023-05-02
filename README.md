@@ -22,6 +22,10 @@ You can choose to view departments, roles, or employees, add a new department, r
 
 Node.js, MySQL2, Inquirer.js, console.table
 
+## Challenges
+
+I tried using console.table for users to be able to view employee managers in table format, it did not work as shown in the last part of my walk-through video. 
+
 ### Links
 
 walk-through video: https://drive.google.com/file/d/1JwUtHYmG5e5X4MkaqFhILR7lBVHvxHe9/view?usp=sharing
